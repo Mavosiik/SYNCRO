@@ -37,36 +37,39 @@ def update_sheet(team_name, lobby_id):
 def create_lobby(date, time):
     """Creates a new qualifiers lobby with the next available identifier."""
     try:
-        # Parse the input date and time into a datetime object
         input_datetime_str = f"{date} {time}"
-        
         try:
             input_datetime = datetime.strptime(input_datetime_str, "%m/%d/%y %H:%M")
         except ValueError:
             return None, "Invalid date or date format. Please use mm/dd/yy HH:MM."
         
-        # Force input datetime to UTC (no time zone conversion)
         input_datetime_utc = pytz.utc.localize(input_datetime)
-        
-        # Get the current datetime in UTC
         current_datetime = datetime.now(pytz.UTC)
 
-        # Check if the date is at least 6 hours from the current time
         if input_datetime_utc < current_datetime + timedelta(hours=6):
             return None, "The date must be at least 6 hours from the current time."
         
-        # Define the date range for the event in UTC
         start_date = datetime(2025, 2, 27, 21, 0, tzinfo=pytz.UTC)
         end_date = datetime(2025, 3, 3, 12, 0, tzinfo=pytz.UTC)
         
-        # Check if the date is within the allowed range
         if not (start_date <= input_datetime_utc <= end_date):
             return None, f"The date must be between {start_date.strftime('%m/%d/%y %H:%M')} and {end_date.strftime('%m/%d/%y %H:%M')}."
         
         worksheet = sheet.worksheet("QSchedule")
+        date_cells = worksheet.range("I2:I")  
+        time_cells = worksheet.range("J2:J")  
+        
+        for date_cell, time_cell in zip(date_cells, time_cells):
+            if date_cell.value == input_datetime.strftime("%m/%d/%y") and time_cell.value == time:
+                row = date_cell.row
+                team_cells = worksheet.range(f"M{row}:Q{row}")
+                
+                for team_cell in team_cells:
+                    if not team_cell.value:
+                        lobby_id = worksheet.cell(row, 8).value  
+                        return None, f"Lobby at this time already exists: {lobby_id}"
         
         lobby_cells = worksheet.range("H2:H")
-        
         last_lobby_number = 0
         for cell in lobby_cells:
             if cell.value and cell.value.startswith("X"):
@@ -82,25 +85,15 @@ def create_lobby(date, time):
         for cell in lobby_cells:
             if not cell.value:
                 row = cell.row
+                formatted_date_str = input_datetime_utc.strftime("%m/%d/%y")
                 
-                # Convert string date to datetime object
-                formatted_date = input_datetime_utc
-                
-                # Convert the datetime object to a string that Google Sheets will recognize
-                formatted_date_str = formatted_date.strftime("%m/%d/%y")
-                
-                # Now update the sheet with the formatted date string
                 worksheet.update(f"H{row}", [[new_lobby_id]])
-                worksheet.update(f"I{row}", [[formatted_date_str]])  # Use the date string for Google Sheets
+                worksheet.update(f"I{row}", [[formatted_date_str]])
                 worksheet.update(f"J{row}", [[time]])
                 
-                # Get the Unix timestamp for Discord formatting (in UTC)
-                timestamp = int(formatted_date.timestamp())  # Convert datetime to Unix timestamp
-                
-                # Create the dynamic timestamp format for Discord
+                timestamp = int(input_datetime_utc.timestamp())
                 discord_timestamp = f"<t:{timestamp}:F>"
                 
-                # Print the message with the Discord-style timestamp
                 print(f"✅ Created new lobby {new_lobby_id} on {formatted_date_str} at {time}. Timestamp for Discord: {discord_timestamp}")
                 return new_lobby_id, None
         

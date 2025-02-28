@@ -17,10 +17,9 @@ class Qualifiers(commands.Cog):
         success, error_msg = update_sheet(team_name, lobby_id)
         
         if success:
-            await interaction.followup.send(f"✅ Successfully added {team_name} to lobby {lobby_id}.")
+            await interaction.followup.send(f"✅ {team_name} has been successfully scheduled for lobby {lobby_id}.")
         else:
-            # Provide more specific error message for failure to schedule
-            await interaction.followup.send(f"❌ Lobby couldn't be created. {error_msg} In case of emergency, please contact a member of the admin team.")
+            await interaction.followup.send(f"❌ Scheduling failed: {error_msg}. Please contact an admin if the issue persists.")
     
     @app_commands.command(name="qmake", description="Create custom qualifiers lobby.")
     async def make_qualifiers(self, interaction: discord.Interaction, date: str, time: str):
@@ -50,10 +49,10 @@ class Qualifiers(commands.Cog):
             print(f"✅ Created new lobby {new_lobby_id} on {utc_time.strftime('%m/%d/%y')} at {utc_time.strftime('%H:%M')}. Timestamp for Discord: {discord_timestamp}")
 
             # Send the success message with the Discord timestamp
-            await interaction.followup.send(f"✅ Created new lobby {new_lobby_id} on {utc_time.strftime('%m/%d/%y')} at {utc_time.strftime('%H:%M')}. {discord_timestamp}")
+            await interaction.followup.send(f"✅ New lobby {new_lobby_id} has been created for {utc_time.strftime('%m/%d/%y')} at {utc_time.strftime('%H:%M')}. {discord_timestamp}")
         else:
             # Provide more specific error message for failure to create a lobby
-            await interaction.followup.send(f"❌ Lobby couldn't be created. {error_msg} In case of emergency, please contact a member of the admin team.")
+            await interaction.followup.send(f"❌ Lobby creation failed: {error_msg}. For urgent matters, please reach out to an admin.")
 
 async def setup(bot):
     await bot.add_cog(Qualifiers(bot))
