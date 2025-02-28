@@ -1,0 +1,2 @@
+TOKEN = "MTM0NDQ0MjAyMDM5OTE1MzMyNQ.GLhSUJ.n7R0JHOkw4dPE3_GuiVbFdk3G1m5a8sBtfd5IM"
+GOOGLE_SHEETS_CREDENTIALS = "/home/mavosiik/Personal/SYNCRO/credentials.json"
