@@ -6,17 +6,40 @@ import pytz
 gc = gspread.service_account(filename=GOOGLE_SHEETS_CREDENTIALS)
 sheet = gc.open("SST3 Ref Sheet")
 
-def update_sheet(team_name, lobby_id):
-    """Updates Google Sheets with the team’s scheduled lobby."""
+def update_sheet(discord_nickname, lobby_id):
+    """Updates Google Sheets with the user’s scheduled lobby."""
     try:
         worksheet = sheet.worksheet("QSchedule")
-        
+
         team_cells = worksheet.range("M2:Q")
+
+        cell = worksheet.find(lobby_id)
+        if cell:
+            row = cell.row
+            date_cell = worksheet.cell(row, 9)
+            time_cell = worksheet.cell(row, 10)
+            current_datetime = datetime.now(pytz.UTC)
+
+            try:
+                # Parse date and time correctly
+                date_value = datetime.strptime(date_cell.value, "%m/%d/%y").date()
+                time_value = datetime.strptime(time_cell.value, "%H:%M").time()  # Parses 'HH:MM' format
+
+                # Combine into a full datetime
+                combined_datetime = datetime.combine(date_value, time_value).replace(tzinfo=pytz.UTC)
+
+                # Compare
+                if combined_datetime < current_datetime:
+                    print("The stored date and time is earlier than now.")
+                    return None, f"The scheduled time for this lobby is earlier than current time."
+
+            except ValueError:
+                print("Invalid date or time format in the sheet.")
         
         for cell in team_cells:
-            if cell.value == team_name:
+            if cell.value == discord_nickname:
                 worksheet.batch_clear([cell.address])
-                print(f"❌ Removed existing {team_name} from {cell.address}.")
+                print(f"❌ Removed existing {discord_nickname} from {cell.address}.")
         
         cell = worksheet.find(lobby_id)
         if cell:
@@ -25,14 +48,15 @@ def update_sheet(team_name, lobby_id):
             
             for cell in team_cells:
                 if not cell.value:
-                    worksheet.update(cell.address, [[team_name]])
-                    print(f"✅ Updated {team_name} in lobby {lobby_id} at {cell.address}.")
+                    worksheet.update(cell.address, [[discord_nickname]])
+                    print(f"✅ Updated {discord_nickname} in lobby {lobby_id} at {cell.address}.")
                     return True, None
         
         return False, "Lobby not found or full."
     except Exception as e:
         print(f"⚠️ Google Sheets Error: {e}")
         return False, "An error occurred while updating the sheet."
+
 
 def create_lobby(date, time):
     """Creates a new qualifiers lobby with the next available identifier."""
@@ -50,7 +74,7 @@ def create_lobby(date, time):
             return None, "The date must be at least 6 hours from the current time."
         
         start_date = datetime(2025, 2, 27, 21, 0, tzinfo=pytz.UTC)
-        end_date = datetime(2025, 3, 3, 12, 0, tzinfo=pytz.UTC)
+        end_date = datetime(2025, 3, 3, 23, 0, tzinfo=pytz.UTC)
         
         if not (start_date <= input_datetime_utc <= end_date):
             return None, f"The date must be between {start_date.strftime('%m/%d/%y %H:%M')} and {end_date.strftime('%m/%d/%y %H:%M')}."
