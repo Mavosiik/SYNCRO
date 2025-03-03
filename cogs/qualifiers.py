@@ -10,6 +10,7 @@ class Qualifiers(commands.Cog):
         self.bot = bot
 
     @app_commands.command(name="qsched", description="Schedule yourself for a qualifiers lobby.")
+    @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
     async def schedule_qualifiers(self, interaction: discord.Interaction, lobby_id: str):
         """Slash command for scheduling a qualifiers lobby using the user's nickname."""
         await interaction.response.defer()
@@ -24,9 +25,10 @@ class Qualifiers(commands.Cog):
         else:
             # Send an ephemeral error message and delete the deferred message
             await interaction.delete_original_response()  # Delete the deferred response
-            await interaction.followup.send(f"❌ Scheduling failed: {error_msg}. Please contact an admin for urgent scheduling assistance or if the issue persists.", ephemeral=True)
+            await interaction.followup.send(f"❌ Scheduling failed: {error_msg}. For urgent matters, please reach out to an admin.", ephemeral=True)
 
     @app_commands.command(name="qmake", description="Create custom qualifiers lobby.")
+    @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
     async def make_qualifiers(self, interaction: discord.Interaction, date: str, time: str):
         """Slash command for creating a new qualifiers lobby."""
         await interaction.response.defer()
