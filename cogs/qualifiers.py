@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands, Embed
 from discord.ext import commands
-from utils.google_sheets import update_sheet, create_lobby, get_lobbies, claim_referee, drop_referee
+from utils.google_sheets import update_sheet, create_lobby, get_lobbies, claim_referee, drop_referee, get_claimed_lobbies
 from datetime import datetime
 import pytz
 
@@ -150,6 +150,31 @@ class Qualifiers(commands.Cog):
             await interaction.response.send_message(embed=embed)
         else:
             await interaction.response.send_message(f"❌ {error_msg}", ephemeral=True)
+
+    @app_commands.command(name="qclaimed", description="List the lobbies claimed by a referee.")
+    @commands.has_role(1114173406628298872)  # Only users with the referee role can use this
+    @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
+    async def claimed_lobbies(self, interaction: discord.Interaction):
+        """Slash command for listing lobbies claimed by the referee."""
+        await interaction.response.defer()
+
+        discord_nickname = interaction.user.nick or interaction.user.name  # Use nickname if set, otherwise fallback to username
+
+        # Get the list of claimed lobbies
+        claimed_lobbies = get_claimed_lobbies(discord_nickname)
+
+        if not claimed_lobbies:
+            await interaction.followup.send(f"❌ No claimed lobbies found for {discord_nickname}.", ephemeral=True)
+            return
+
+        # Prepare the embed message
+        embed = discord.Embed(title=f"Claimed Lobbies by {discord_nickname}", color=discord.Color.blue())
+        embed.description = "These are the lobbies you have claimed that are still upcoming."
+
+        for lobby_id, timestamp in claimed_lobbies:
+            embed.add_field(name=f"• {lobby_id}", value=f"{timestamp}", inline=False)
+
+        await interaction.followup.send(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(Qualifiers(bot))

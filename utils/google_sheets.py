@@ -246,3 +246,38 @@ def drop_referee(lobby_id, discord_nickname):
     except Exception as e:
         print(f"⚠️ Google Sheets Error: {e}")
         return False, "An error occurred while dropping the lobby."
+
+def get_claimed_lobbies(discord_nickname):
+    """Fetches the lobbies claimed by the referee, ensuring that the lobby times are not earlier than the current time by more than 1 hour."""
+    try:
+        worksheet = sheet.worksheet("QSchedule")
+        lobby_cells = worksheet.range("H2:H")
+        date_cells = worksheet.range("I2:I")
+        time_cells = worksheet.range("J2:J")
+        referee_cells = worksheet.range("K2:K")
+        
+        claimed_lobbies = []
+        current_time = datetime.now(pytz.UTC)
+        one_hour_earlier = current_time - timedelta(hours=1)
+
+        # Iterate over the lobbies to find the ones claimed by the referee
+        for i, (lobby_cell, date_cell, time_cell, referee_cell) in enumerate(zip(lobby_cells, date_cells, time_cells, referee_cells)):
+            if referee_cell.value != discord_nickname:  # Only look for lobbies claimed by this referee
+                continue
+
+            try:
+                lobby_datetime = datetime.strptime(f"{date_cell.value} {time_cell.value}", "%m/%d/%y %H:%M").replace(tzinfo=pytz.UTC)
+                if lobby_datetime < one_hour_earlier:
+                    continue  # Skip lobbies claimed more than 1 hour earlier
+            except ValueError:
+                continue  # Skip invalid date/time formats
+
+            # Add the valid lobby to the list
+            discord_timestamp = f"<t:{int(lobby_datetime.timestamp())}:F>"
+            claimed_lobbies.append((lobby_cell.value, discord_timestamp))
+
+        return claimed_lobbies
+
+    except Exception as e:
+        print(f"⚠️ Google Sheets Error: {e}")
+        return []
