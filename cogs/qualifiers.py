@@ -116,6 +116,12 @@ class Qualifiers(commands.Cog):
     @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
     async def claim_lobby(self, interaction: discord.Interaction, lobby_id: str):
         """Slash command for claiming a lobby as a referee."""
+
+        # Check if the user has the correct role
+        if not any(role.id == 1114173406628298872 for role in interaction.user.roles):
+            await interaction.response.send_message("❌ Only referees can claim qualifier lobbies", ephemeral=True)
+            return
+
         discord_nickname = interaction.user.nick or interaction.user.name  # Use nickname if set, otherwise fallback to username
 
         success, error_msg = claim_referee(lobby_id, discord_nickname)
@@ -136,6 +142,12 @@ class Qualifiers(commands.Cog):
     @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
     async def drop_lobby(self, interaction: discord.Interaction, lobby_id: str):
         """Slash command for dropping a referee claim on a lobby."""
+
+        # Check if the user has the correct role
+        if not any(role.id == 1114173406628298872 for role in interaction.user.roles):
+            await interaction.response.send_message("❌ Only referees can claim qualifier lobbies", ephemeral=True)
+            return
+        
         discord_nickname = interaction.user.nick or interaction.user.name  # Use nickname if set, otherwise fallback to username
 
         success, error_msg = drop_referee(lobby_id, discord_nickname)
@@ -156,6 +168,12 @@ class Qualifiers(commands.Cog):
     @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
     async def claimed_lobbies(self, interaction: discord.Interaction):
         """Slash command for listing lobbies claimed by the referee."""
+        
+        # Check if the user has the correct role
+        if not any(role.id == 1114173406628298872 for role in interaction.user.roles):
+            await interaction.response.send_message("❌ Only referees can claim qualifier lobbies", ephemeral=True)
+            return
+        
         await interaction.response.defer()
 
         discord_nickname = interaction.user.nick or interaction.user.name  # Use nickname if set, otherwise fallback to username
