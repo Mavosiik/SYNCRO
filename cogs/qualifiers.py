@@ -1,6 +1,7 @@
+import asyncio
 import discord
 from discord import app_commands, Embed
-from discord.ext import commands
+from discord.ext import commands, tasks
 from utils.google_sheets import update_sheet, create_lobby, get_lobbies, claim_referee, drop_referee, get_claimed_lobbies
 from datetime import datetime
 import pytz
@@ -9,28 +10,41 @@ class Qualifiers(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="qsched", description="Schedule yourself for a qualifiers lobby.")
+    @app_commands.command(name="qsched", description="Schedule yourself for a qualifiers lobby using your lowest role.")
     @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
     async def schedule_qualifiers(self, interaction: discord.Interaction, lobby_id: str):
-        """Slash command for scheduling a qualifiers lobby using the user's nickname."""
+        """Slash command for scheduling a qualifiers lobby using the user's lowest role (excluding @everyone)."""
+
+        # Check if the user has the correct role
+        if not any(role.id == 1344467503245557770 for role in interaction.user.roles):
+            await interaction.response.send_message("❌ Only captains can schedule qualifier lobbies. For urgent matters please reach out to an admin", ephemeral=True)
+            return
+        
         await interaction.response.defer()
+        
+        # Get all roles excluding @everyone and find the lowest one
+        roles = [role for role in interaction.user.roles if role.name != "@everyone"]
+        if not roles:
+            await interaction.followup.send("❌ You don't have any assignable roles.", ephemeral=True)
+            return
+        
+        lowest_role = min(roles, key=lambda r: r.position)  # Get the lowest role by position
+        role_name = lowest_role.name
 
-        discord_nickname = interaction.user.nick or interaction.user.name  # Use nickname if set, otherwise fallback to username
-
-        success, error_msg = update_sheet(discord_nickname, lobby_id)
+        success, error_msg = update_sheet(role_name, lobby_id)
 
         if success:
             # Create an embedded success message
             embed = Embed(
-                title=f"✅ {discord_nickname} Scheduled",
-                description=f"{discord_nickname} has been successfully scheduled for lobby {lobby_id}.",
+                title=f"✅ {role_name} Scheduled",
+                description=f"{role_name} has been successfully scheduled for lobby {lobby_id}.",
                 color=discord.Color.green()
             )
             await interaction.followup.send(embed=embed)
         else:
             # Send an ephemeral error message and delete the deferred message
             await interaction.delete_original_response()  # Delete the deferred response
-            await interaction.followup.send(f"❌ Scheduling failed: {error_msg}. For urgent matters, please reach out to an admin.", ephemeral=True)
+            await interaction.followup.send(f"❌ Scheduling failed: {error_msg} For urgent matters, please reach out to an admin.", ephemeral=True)
 
     @app_commands.command(name="qmake", description="Create custom qualifiers lobby.")
     @app_commands.describe(
@@ -40,6 +54,15 @@ class Qualifiers(commands.Cog):
     @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
     async def make_qualifiers(self, interaction: discord.Interaction, date: str, time: str):
         """Slash command for creating a new qualifiers lobby."""
+
+        # Define the role IDs you want to check
+        role_ids = [1344467503245557770, 1114173406628298872, 1234974134744907989]  # Allowed roles
+
+        # Check if the user has any of the roles
+        if not any(role.id in role_ids for role in interaction.user.roles):
+            await interaction.response.send_message("❌ Only captains, admins and referees can create qualifier lobbies. For urgent matters please reach out to an admin", ephemeral=True)
+            return
+
         await interaction.response.defer()
 
         new_lobby_id, error_msg = create_lobby(date, time)
@@ -74,7 +97,7 @@ class Qualifiers(commands.Cog):
         else:
             # Send an ephemeral error message and delete the deferred response
             await interaction.delete_original_response()  # Delete the deferred response
-            await interaction.followup.send(f"❌ Lobby creation failed: {error_msg}. For urgent matters, please reach out to an admin.", ephemeral=True)
+            await interaction.followup.send(f"❌ Lobby creation failed: {error_msg} For urgent matters, please reach out to an admin.", ephemeral=True)
 
     @app_commands.command(name="lobbies", description="List upcoming qualifiers lobbies based on conditions.")
     @app_commands.describe(condition="referee=empty for lobbies without a referee | free for lobbies with free team slot")

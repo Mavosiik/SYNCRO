@@ -1,0 +1,18 @@
+--DISCORD_MODERATION--
+- add player, team roles on team signup/player from team join
+- add captain role on team signup/player join
+(check for updates both on sheet and discord welcome channel)
+
+--QUALIFIERS--
+- ping team roles and referee 15min before the lobby start 
+
+--BRACKET--
+- rescheduling system:
+    - captain of 1 team uses the /reschedule <id> <new date> <new time> command
+    - other team captain gets the option to accept/decline reschedule
+    - only the captains of teams involved in the lobby can reschedule (accept/decline reschedule)
+- /matches - shows upcoming matches of users team
+- /matches_claim <role> <id> - command for staff (casters, referees, streamers) to claim matches
+- /matches_find <condition> - finds matches with input condition (referee=empty, streamer=empty, caster=empty)
+- limit staff commands to the staff roles
+- ping teams and referee 15min before the match start
