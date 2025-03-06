@@ -2,7 +2,7 @@ import asyncio
 import discord
 from discord import app_commands, Embed
 from discord.ext import commands, tasks
-from utils.google_sheets import update_sheet, create_lobby, get_lobbies, claim_referee, drop_referee, get_claimed_lobbies
+from utils.google_sheets import update_sheet, create_lobby, get_lobbies, claim_referee, drop_referee, get_claimed_lobbies, fetch_pings
 from datetime import datetime
 import pytz
 
@@ -216,6 +216,39 @@ class Qualifiers(commands.Cog):
             embed.add_field(name=f"• {lobby_id}", value=f"{timestamp}", inline=False)
 
         await interaction.followup.send(embed=embed)
+
+    @app_commands.command(name="qping", description="Ping a quals lobby")
+    @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
+    async def quals_ping(self, interaction: discord.Interaction, lobby_id: str):
+        # Fetch user nickname and team role names (not implemented yet)
+        inviter_nickname, team_roles = fetch_pings(lobby_id)  
+
+        if not team_roles:
+            await interaction.response.send_message("This lobby is empty.", ephemeral=True)
+            return
+
+        # Get user object from nickname
+        inviter = discord.utils.get(interaction.guild.members, display_name=inviter_nickname)
+
+        # Convert role names to role mentions
+        role_mentions = []
+        for role_name in team_roles:
+            role = discord.utils.get(interaction.guild.roles, name=role_name)
+            if role:
+                role_mentions.append(role.mention)
+
+        if not role_mentions:
+            await interaction.response.send_message("No valid roles found to ping.", ephemeral=True)
+            return
+
+        # Format the message
+        role_ping_text = " ".join(role_mentions)
+        inviter_text = inviter.mention if inviter else inviter_nickname  # Mention if found, otherwise use name
+
+        message = f"{role_ping_text} your lobby starts in 15 minutes, you'll get invites from {inviter_text}"
+
+        # Send message with role pings enabled
+        await interaction.response.send_message(message, allowed_mentions=discord.AllowedMentions(roles=True, users=True))
 
 async def setup(bot):
     await bot.add_cog(Qualifiers(bot))

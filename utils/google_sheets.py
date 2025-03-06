@@ -281,3 +281,25 @@ def get_claimed_lobbies(discord_nickname):
     except Exception as e:
         print(f"⚠️ Google Sheets Error: {e}")
         return []
+
+def fetch_pings(lobbyID):
+    worksheet = sheet.worksheet("QSchedule")
+
+    # Fetch data ranges
+    lobby_cells = worksheet.range("H2:H")  # Lobby IDs
+    referee_cells = worksheet.range("K2:K")  # Referee nicknames
+    team_cells = worksheet.range("M2:Q")  # Team names (5 columns)
+
+    # Loop through lobby cells to find the matching lobbyID
+    for i, cell in enumerate(lobby_cells):
+        if cell.value == lobbyID:
+            # Get referee nickname from column K
+            referee_nickname = referee_cells[i].value.strip() if referee_cells[i].value else None
+            
+            # Get team role names from columns M to Q
+            team_roles = [team_cells[j].value.strip() for j in range(i * 5, i * 5 + 5) if team_cells[j].value]
+
+            return referee_nickname, team_roles
+
+    # If no matching lobby found
+    return None, None
