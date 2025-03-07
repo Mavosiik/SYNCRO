@@ -6,6 +6,9 @@ import pytz
 gc = gspread.service_account(filename=GOOGLE_SHEETS_CREDENTIALS)
 sheet = gc.open("SST3 Ref Sheet")
 
+def get_worksheet():
+    return sheet.worksheet("QSchedule")
+
 def update_sheet(discord_nickname, lobby_id):
     """Updates Google Sheets with the user’s scheduled lobby."""
     try:

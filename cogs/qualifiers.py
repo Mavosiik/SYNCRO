@@ -2,13 +2,14 @@ import asyncio
 import discord
 from discord import app_commands, Embed
 from discord.ext import commands, tasks
-from utils.google_sheets import update_sheet, create_lobby, get_lobbies, claim_referee, drop_referee, get_claimed_lobbies, fetch_pings
+from utils.google_sheets import get_worksheet, update_sheet, create_lobby, get_lobbies, claim_referee, drop_referee, get_claimed_lobbies, fetch_pings
 from datetime import datetime
 import pytz
 
 class Qualifiers(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.check_lobbies.start()
 
     @app_commands.command(name="qsched", description="Schedule yourself for a qualifiers lobby using your lowest role.")
     @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
@@ -217,38 +218,65 @@ class Qualifiers(commands.Cog):
 
         await interaction.followup.send(embed=embed)
 
-    @app_commands.command(name="qping", description="Ping a quals lobby")
-    @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
-    async def quals_ping(self, interaction: discord.Interaction, lobby_id: str):
-        # Fetch user nickname and team role names (not implemented yet)
-        inviter_nickname, team_roles = fetch_pings(lobby_id)  
+    @tasks.loop(minutes=1)  # Runs every minute
+    async def check_lobbies(self):
+        print("checking")
+        worksheet = get_worksheet()  # Get the Google Sheet
+        rows = worksheet.get_all_values()[1:60]  # Fetch all rows from the sheet
 
-        if not team_roles:
-            await interaction.response.send_message("This lobby is empty.", ephemeral=True)
-            return
+        # Loop through each row and check if column 'S' has a number <= 15
+        for row in rows:
+            try:
+                lobby_id = row[7]  # Column H is index 7 (starting from 0) for the lobby ID
+                time_left = int(row[18])  # Column S is index 18 (starting from 0)
+                pinged_status = int(row[19])  # Column T is index 19 (starting from 0)
 
-        # Get user object from nickname
-        inviter = discord.utils.get(interaction.guild.members, display_name=inviter_nickname)
+                print(f"id:{lobby_id} in {time_left}")
 
-        # Convert role names to role mentions
-        role_mentions = []
-        for role_name in team_roles:
-            role = discord.utils.get(interaction.guild.roles, name=role_name)
-            if role:
-                role_mentions.append(role.mention)
+                # Skip if time_left is -727
+                if time_left < 0:
+                    print("finished/empty lobby")
+                    continue  # Skip if time left cell is -727
 
-        if not role_mentions:
-            await interaction.response.send_message("No valid roles found to ping.", ephemeral=True)
-            return
+                # Check if the time left is <= 15 minutes and T column is 0 (not pinged yet)
+                if time_left <= 15 and pinged_status == 0:
+                    inviter_nickname, team_roles = fetch_pings(lobby_id)  # Use your existing fetch_pings function
 
-        # Format the message
-        role_ping_text = " ".join(role_mentions)
-        inviter_text = inviter.mention if inviter else inviter_nickname  # Mention if found, otherwise use name
+                    if not team_roles:
+                        continue
 
-        message = f"{role_ping_text} your lobby starts in 15 minutes, you'll get invites from {inviter_text}"
+                    inviter = discord.utils.get(self.bot.guilds[0].members, display_name=inviter_nickname)
 
-        # Send message with role pings enabled
-        await interaction.response.send_message(message, allowed_mentions=discord.AllowedMentions(roles=True, users=True))
+                    role_mentions = []
+                    for role_name in team_roles:
+                        role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
+                        if role:
+                            role_mentions.append(role.mention)
+
+                    if not role_mentions:
+                        continue
+
+                    role_ping_text = " ".join(role_mentions)
+                    inviter_text = inviter.mention if inviter else inviter_nickname
+
+                    message = f"{role_ping_text} Your qualifiers lobby: **{lobby_id}** starts soon, the referee for this lobby will be {inviter_text}"
+
+                    # Send the ping to the channel
+                    channel = discord.utils.get(self.bot.guilds[0].text_channels, name="bot-testing")  # Change this to your target channel
+                    if channel:
+                        await channel.send(message, allowed_mentions=discord.AllowedMentions(roles=True, users=True))
+
+                    # After sending the ping, increment the value in the T column
+                    row_index = rows.index(row) + 2  # Calculate the correct row number
+                    worksheet.update_cell(row_index, 20, 1)  # Column T is 20th, row_index is 1-based
+
+            except Exception as e:
+                print(f"Error checking lobby {lobby_id}: {e}")
+
+    @check_lobbies.before_loop
+    async def before_check_lobbies(self):
+        # Wait until the bot is fully ready before starting the task
+        await self.bot.wait_until_ready()
 
 async def setup(bot):
     await bot.add_cog(Qualifiers(bot))
