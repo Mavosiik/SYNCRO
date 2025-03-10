@@ -9,7 +9,8 @@ intents.members = True
 bot = commands.Bot(command_prefix="/", intents=intents)
 
 async def load_cogs():
-    await bot.load_extension("cogs.qualifiers")  # Make sure "cogs" is a folder
+    await bot.load_extension("cogs.qualifiers")  # load qualifiers module
+    await bot.load_extension("cogs.bracket")  # load bracket module
 
 @bot.event
 async def on_ready():
