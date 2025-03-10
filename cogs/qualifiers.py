@@ -10,14 +10,24 @@ class Qualifiers(commands.Cog):
         self.bot = bot
         self.check_lobbies.start()
 
-    @app_commands.command(name="qsched", description="Schedule yourself for a qualifiers lobby using your lowest role.")
+    @app_commands.command(name="qrules", description="Displays the qualifiers rules")
+    @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
+    async def qrules(self, interaction: discord.Interaction):
+        embed = Embed(title="Qualifiers Rules", description="Please follow these rules to ensure a smooth run of the qualifiers stage", color=0x1ABC9C)
+        embed.add_field(name="📝 Scheduling Rules", value="- Only **the captain** of the team can schedule their lobby *(for emergencies contact a member of the admin team)*\n- Each team can sign up for any existing lobby **before it's start time**\n- Custom lobbies **must** be scheduled **at least 6h before the lobby time** *(exceptions can be made if there's a referee able to take the lobby)*", inline=False)
+        embed.add_field(name="⚔ Qualifiers Procedure", value="- Every team will have **one try** to play the qualifiers\n- Qualifiers mappool will consist of **4xNM, 2xHD, 2xHR, 2xDT and 1xEZ**, played in order **beginning with NM1 and ending with EZ1**\n- If a player disconnects during a map **due to a technical issue**, they’re allowed to replay the map **once**\n- Teams that are **more than 5 minutes late** to their qualifier lobby **will be asked to reschedule**", inline=False)
+        embed.add_field(name="📌 Useful Links", value="- [Main Sheet](add_later)\n- [Full Rulebook](https://docs.google.com/document/d/1svb55MENQu1lbJIagna5RaCaAn_e2pkZBIHcgPQ9G5A)", inline=False)
+        
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="qsched", description="Schedule your team for a qualifiers lobby.")
     @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
     async def schedule_qualifiers(self, interaction: discord.Interaction, lobby_id: str):
         """Slash command for scheduling a qualifiers lobby using the user's lowest role (excluding @everyone)."""
 
         # Check if the user has the correct role
         if not any(role.id == 1344467503245557770 for role in interaction.user.roles):
-            await interaction.response.send_message("❌ Only captains can schedule qualifier lobbies. For urgent matters please reach out to an admin", ephemeral=True)
+            await interaction.response.send_message("❌ Only captains can schedule qualifier lobbies. For urgent matters please reach out to an admin.", ephemeral=True)
             return
         
         await interaction.response.defer()

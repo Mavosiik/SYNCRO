@@ -4,7 +4,6 @@
 (check for updates both on sheet and discord welcome channel)
 
 --QUALIFIERS--
-- ping team roles and referee 15min before the lobby start 
 
 --BRACKET--
 - rescheduling system:
