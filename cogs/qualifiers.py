@@ -15,7 +15,7 @@ class Qualifiers(commands.Cog):
     async def qrules(self, interaction: discord.Interaction):
         embed = Embed(title="Qualifiers Rules", description="Please follow these rules to ensure a smooth run of the qualifiers stage", color=0x1ABC9C)
         embed.add_field(name="📝 Scheduling Rules", value="- Only **the captain** of the team can schedule their lobby *(for emergencies contact a member of the admin team)*\n- Each team can sign up for any existing lobby **before it's start time**\n- Custom lobbies **must** be scheduled **at least 6h before the lobby time** *(exceptions can be made if there's a referee able to take the lobby)*", inline=False)
-        embed.add_field(name="⚔ Qualifiers Procedure", value="- Every team will have **one try** to play the qualifiers\n- Qualifiers mappool will consist of **4xNM, 2xHD, 2xHR, 2xDT and 1xEZ**, played in order **beginning with NM1 and ending with EZ1**\n- If a player disconnects during a map **due to a technical issue**, they’re allowed to replay the map **once**\n- Teams that are **more than 5 minutes late** to their qualifier lobby **will be asked to reschedule**", inline=False)
+        embed.add_field(name="⚔ Qualifiers Procedure", value="- Every team will be notified about their lobby 15 minutes prior to the lobby start time\n- Every team will have **one try** to play the qualifiers\n- Qualifiers mappool will consist of **4xNM, 2xHD, 2xHR, 2xDT and 1xEZ**, played in order **beginning with NM1 and ending with EZ1**\n- If a player disconnects during a map **due to a technical issue**, they’re allowed to replay the map **once**\n- Teams that are **more than 5 minutes late** to their qualifier lobby **will be asked to reschedule**", inline=False)
         embed.add_field(name="📌 Useful Links", value="- [Main Sheet](add_later)\n- [Full Rulebook](https://docs.google.com/document/d/1svb55MENQu1lbJIagna5RaCaAn_e2pkZBIHcgPQ9G5A)", inline=False)
         
         await interaction.response.send_message(embed=embed)
@@ -132,7 +132,7 @@ class Qualifiers(commands.Cog):
         displayed_lobbies = lobbies[:max_display]
         extra_count = len(lobbies) - max_display
 
-        embed = discord.Embed(title=f"Upcoming Lobbies ({condition.capitalize()})", color=discord.Color.blue())
+        embed = discord.Embed(title=f"Upcoming Lobbies ({condition.capitalize()})", color=0x1ABC9C)
         embed.description = "Times are in **your local timezone**"
 
         for lobby_id, timestamp in displayed_lobbies:
@@ -219,7 +219,7 @@ class Qualifiers(commands.Cog):
             return
 
         # Prepare the embed message
-        embed = discord.Embed(title=f"Claimed Lobbies by {discord_nickname}", color=discord.Color.blue())
+        embed = discord.Embed(title=f"Claimed Lobbies by {discord_nickname}", color=0x1ABC9C)
         embed.description = "These are the lobbies you have claimed that are still upcoming."
 
         for lobby_id, timestamp in claimed_lobbies:
