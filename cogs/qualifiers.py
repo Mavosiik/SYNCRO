@@ -4,6 +4,8 @@ from discord.ext import commands, tasks
 from utils.google_sheets import get_worksheet, update_sheet, create_lobby, get_lobbies, claim_referee, drop_referee, get_claimed_lobbies, fetch_pings
 from datetime import datetime
 import pytz
+import io
+import csv
 
 class Qualifiers(commands.Cog):
     def __init__(self, bot):
@@ -15,8 +17,8 @@ class Qualifiers(commands.Cog):
     async def qrules(self, interaction: discord.Interaction):
         embed = Embed(title="Qualifiers Rules", description="Please follow these rules to ensure a smooth run of the qualifiers stage", color=0x1ABC9C)
         embed.add_field(name="📝 Scheduling Rules", value="- Only **the captain** of the team can schedule their lobby *(for emergencies contact a member of the admin team)*\n- Each team can sign up for any existing lobby **before it's start time**\n- Custom lobbies **must** be scheduled **at least 6h before the lobby time** *(exceptions can be made if there's a referee able to take the lobby)*", inline=False)
-        embed.add_field(name="⚔ Qualifiers Procedure", value="- Every team will be notified about their lobby 15 minutes prior to the lobby start time\n- Every team will have **one try** to play the qualifiers\n- Qualifiers mappool will consist of **4xNM, 2xHD, 2xHR, 2xDT and 1xEZ**, played in order **beginning with NM1 and ending with EZ1**\n- If a player disconnects during a map **due to a technical issue**, they’re allowed to replay the map **once**\n- Teams that are **more than 5 minutes late** to their qualifier lobby **will be asked to reschedule**", inline=False)
-        embed.add_field(name="📌 Useful Links", value="- [Main Sheet](add_later)\n- [Full Rulebook](https://docs.google.com/document/d/1svb55MENQu1lbJIagna5RaCaAn_e2pkZBIHcgPQ9G5A)", inline=False)
+        embed.add_field(name="⚔ Qualifiers Procedure", value="- Every team will be notified about their lobby **15 minutes prior to the lobby start time**\n- Every team will have **one try** to play the qualifiers\n- Qualifiers mappool will consist of **4xNM, 2xHD, 2xHR and 2xDT**, played in order **beginning with EZ1NM1 and ending with DT2**\n- If a player disconnects during a map **due to a technical issue**, they’re allowed to replay the map **once**\n- Teams that are **more than 5 minutes late** to their qualifier lobby **will be asked to reschedule**", inline=False)
+        embed.add_field(name="📌 Useful Links", value="- [Main Sheet](https://docs.google.com/spreadsheets/d/1e-PgHx_fx-aqo_J1M17ekpshO72Ldnilr5QYZJ4X7RU)\n- [Full Rulebook](https://docs.google.com/document/d/1HSZA4_OCpGjgmlVCrxvNT70ANSWaaxup9FLUGoATqoQ)", inline=False)
         
         await interaction.response.send_message(embed=embed)
 
@@ -66,7 +68,7 @@ class Qualifiers(commands.Cog):
         """Slash command for creating a new qualifiers lobby."""
 
         # Define the role IDs you want to check
-        role_ids = [1344467503245557770, 1114173406628298872, 1234974134744907989]  # Allowed roles
+        role_ids = [1162844846478864544, 1164991967302783037]  # Allowed roles
 
         # Check if the user has any of the roles
         if not any(role.id in role_ids for role in interaction.user.roles):
@@ -145,65 +147,65 @@ class Qualifiers(commands.Cog):
         await interaction.followup.send(embed=embed)
 
     @app_commands.command(name="qclaim", description="Claim a qualifiers lobby as a referee.")
-    @commands.has_role(1114173406628298872)  # Only users with the referee role can use this
-    @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
+    @commands.has_role(1162844846478864544)
+    @commands.cooldown(1, 1.0, commands.BucketType.default)
     async def claim_lobby(self, interaction: discord.Interaction, lobby_id: str):
         """Slash command for claiming a lobby as a referee."""
 
-        # Check if the user has the correct role
-        if not any(role.id == 1114173406628298872 for role in interaction.user.roles):
+        if not any(role.id == 1162844846478864544 for role in interaction.user.roles):
             await interaction.response.send_message("❌ Only referees can claim qualifier lobbies", ephemeral=True)
             return
 
         discord_nickname = interaction.user.nick or interaction.user.name  # Use nickname if set, otherwise fallback to username
+        discord_id = interaction.user.id
 
-        success, error_msg = claim_referee(lobby_id, discord_nickname)
+        success, error_msg = claim_referee(lobby_id, discord_id)
 
         if success:
-            # Create an embedded success message for claiming the lobby
-            embed = Embed(
+            embedmsg = Embed(
                 title=f"✅ Lobby {lobby_id} Claimed",
                 description=f"{discord_nickname} has successfully claimed lobby {lobby_id} as the referee.",
                 color=discord.Color.green()
             )
-            await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(embed=embedmsg)
         else:
             await interaction.response.send_message(f"❌ {error_msg}", ephemeral=True)
 
     @app_commands.command(name="qdrop", description="Drop your claim as a referee for a qualifiers lobby.")
-    @commands.has_role(1114173406628298872)  # Only users with the referee role can use this
+    @commands.has_role(1162844846478864544)  # Only users with the referee role can use this
     @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
     async def drop_lobby(self, interaction: discord.Interaction, lobby_id: str):
         """Slash command for dropping a referee claim on a lobby."""
 
         # Check if the user has the correct role
-        if not any(role.id == 1114173406628298872 for role in interaction.user.roles):
+        if not any(role.id == 1162844846478864544 for role in interaction.user.roles):
             await interaction.response.send_message("❌ Only referees can claim qualifier lobbies", ephemeral=True)
             return
         
         discord_nickname = interaction.user.nick or interaction.user.name  # Use nickname if set, otherwise fallback to username
+        discord_id = interaction.user.id
 
-        success, error_msg = drop_referee(lobby_id, discord_nickname)
+        success, error_msg = drop_referee(lobby_id, discord_id)
 
         if success:
             # Create an embedded success message for dropping the lobby
-            embed = Embed(
+            embedmsg = Embed(
                 title=f"✅ Lobby {lobby_id} Dropped",
                 description=f"{discord_nickname} has successfully dropped their claim on lobby {lobby_id}.",
                 color=discord.Color.green()
             )
-            await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(embed=embedmsg)
         else:
             await interaction.response.send_message(f"❌ {error_msg}", ephemeral=True)
 
     @app_commands.command(name="qclaimed", description="List the lobbies claimed by a referee.")
-    @commands.has_role(1114173406628298872)  # Only users with the referee role can use this
+    @commands.has_role(1162844846478864544)  # Only users with the referee role can use this
     @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
     async def claimed_lobbies(self, interaction: discord.Interaction):
         """Slash command for listing lobbies claimed by the referee."""
         
         # Check if the user has the correct role
-        if not any(role.id == 1114173406628298872 for role in interaction.user.roles):
+        if not any(role.id == 1162844846478864544 for role in interaction.user.roles):
             await interaction.response.send_message("❌ Only referees can claim qualifier lobbies", ephemeral=True)
             return
         
@@ -249,29 +251,27 @@ class Qualifiers(commands.Cog):
 
                 # Check if the time left is <= 15 minutes and T column is 0 (not pinged yet)
                 if time_left <= 15 and pinged_status == 0:
-                    inviter_nickname, team_roles = fetch_pings(lobby_id)  # Use your existing fetch_pings function
+                    inviter_id, team_cap_ids = fetch_pings(lobby_id)  # Returns Discord user IDs
 
-                    if not team_roles:
+                    if not team_cap_ids:
                         continue
 
-                    inviter = discord.utils.get(self.bot.guilds[0].members, display_name=inviter_nickname)
+                    # Mention inviter directly
+                    inviter_text = f"<@{inviter_id}>" if inviter_id else "No referee <@&1162844846478864544> please help"
 
-                    role_mentions = []
-                    for role_name in team_roles:
-                        role = discord.utils.get(self.bot.guilds[0].roles, name=role_name)
-                        if role:
-                            role_mentions.append(role.mention)
+                    # Mention each team captain directly
+                    role_mentions = [f"<@{cap_id}>" for cap_id in team_cap_ids]
 
                     if not role_mentions:
                         continue
 
                     role_ping_text = " ".join(role_mentions)
-                    inviter_text = inviter.mention if inviter else inviter_nickname
 
-                    message = f"{role_ping_text} Your qualifiers lobby: **{lobby_id}** starts soon, the referee for this lobby will be {inviter_text}"
+
+                    message = f"{role_ping_text} Your qualifiers lobby: **{lobby_id}** starts soon, the referee for this lobby will be: {inviter_text}"
 
                     # Send the ping to the channel
-                    channel = discord.utils.get(self.bot.guilds[0].text_channels, name="bot-testing")  # Change this to your target channel
+                    channel = self.bot.get_channel(1359560191133089915)
                     if channel:
                         await channel.send(message, allowed_mentions=discord.AllowedMentions(roles=True, users=True))
 
@@ -286,6 +286,36 @@ class Qualifiers(commands.Cog):
     async def before_check_lobbies(self):
         # Wait until the bot is fully ready before starting the task
         await self.bot.wait_until_ready()
+
+
+
+    @app_commands.command(name="get_users", description="Get all users in the guild and their IDs in a CSV format.")
+    async def get_users(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
+        guild = interaction.guild
+        await guild.chunk()
+
+        print(f"Cached members: {len(guild.members)}")
+
+        # Prepare CSV data
+        csv_data = io.StringIO()
+        csv_writer = csv.writer(csv_data)
+
+        # Write header
+        csv_writer.writerow(["Username", "ID"])
+
+        # Write each member's username and ID
+        for member in guild.members:
+            csv_writer.writerow([f"{member.name}#{member.discriminator}", member.id])
+
+        # Prepare the CSV file to send
+        csv_data.seek(0)  # Reset pointer to the beginning of the StringIO buffer
+        output_file = discord.File(fp=csv_data, filename="users.csv")
+
+        # Send the CSV file as a response
+        await interaction.followup.send(content="Here's the CSV file with all users and their IDs:", file=output_file)
+
 
 async def setup(bot):
     await bot.add_cog(Qualifiers(bot))

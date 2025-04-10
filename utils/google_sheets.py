@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import pytz
 
 gc = gspread.service_account(filename=GOOGLE_SHEETS_CREDENTIALS)
-sheet = gc.open("SST3 Ref Sheet")
+sheet = gc.open("MBB7 // Ref Sheet")
 
 def get_worksheet():
     return sheet.worksheet("QSchedule")
@@ -101,8 +101,8 @@ def create_lobby(date, time):
         if input_datetime_utc < current_datetime + timedelta(hours=6):
             return None, "**The date must be at least 6 hours from the current time.**"
         
-        start_date = datetime(2025, 3, 3, 12, 0, tzinfo=pytz.UTC)
-        end_date = datetime(2025, 3, 12, 23, 0, tzinfo=pytz.UTC)
+        start_date = datetime(2025, 4, 14, 12, 0, tzinfo=pytz.UTC)
+        end_date = datetime(2025, 4, 21, 12, 0, tzinfo=pytz.UTC)
         
         if not (start_date <= input_datetime_utc <= end_date):
             return None, f"The date must be between** {start_date.strftime('%m/%d/%y %H:%M')} and {end_date.strftime('%m/%d/%y %H:%M')}.**"
@@ -201,22 +201,22 @@ def get_lobbies(condition):
         print(f"⚠️ Google Sheets Error: {e}")
         return []
 
-def claim_referee(lobby_id, discord_nickname):
-    """Claims a lobby by adding a referee's name to the referee cell."""
+def claim_referee(lobby_id, discord_id):
+    """Claims a lobby by adding a referee's id to the referee cell."""
     try:
         worksheet = sheet.worksheet("QSchedule")
         cell = worksheet.find(lobby_id)
 
         if cell:
             row = cell.row
-            referee_cell = worksheet.cell(row, 11)  # Referee cell is in column K (11th column)
+            referee_cell = worksheet.cell(row, 23)  # Referee cell is in column W (23rd column)
 
             if referee_cell.value:
                 return False, "**Lobby is already claimed.**"
 
             # Update the referee cell with the Discord user's nickname
-            worksheet.update(referee_cell.address, [[discord_nickname]])  # Correct format for single cell update
-            print(f"✅ {discord_nickname} claimed lobby {lobby_id} successfully.")
+            worksheet.update(referee_cell.address, [[str(discord_id)]])
+            print(f"✅ {discord_id} claimed lobby {lobby_id} successfully.")
             return True, None
         else:
             return False, "**Lobby not found.**"
@@ -225,7 +225,7 @@ def claim_referee(lobby_id, discord_nickname):
         print(f"⚠️ Google Sheets Error: {e}")
         return False, "An error occurred while claiming the lobby."
 
-def drop_referee(lobby_id, discord_nickname):
+def drop_referee(lobby_id, discord_id):
     """Drops a referee's claim on a lobby."""
     try:
         worksheet = sheet.worksheet("QSchedule")
@@ -233,15 +233,18 @@ def drop_referee(lobby_id, discord_nickname):
 
         if cell:
             row = cell.row
-            referee_cell = worksheet.cell(row, 11)  # Referee cell is in column K (11th column)
+            referee_cell_addr = gspread.utils.rowcol_to_a1(row, 23)  # Referee cell is in column W (23rd column)
 
-            if referee_cell.value != discord_nickname:
-                # If the current referee is not the same as the user, return an error
+            # Get the current value of the referee cell as a string
+            current_referee_id = worksheet.acell(referee_cell_addr).value.strip()  # Strip any surrounding spaces
+
+            # Compare the current value with the provided discord ID
+            if current_referee_id != str(discord_id):
                 return False, "**This lobby is claimed by another referee. You cannot drop this claim.**"
 
-            # Clear the referee cell if it matches
-            worksheet.update(referee_cell.address, [['']])  # Clear the referee cell
-            print(f"✅ {discord_nickname} dropped from lobby {lobby_id}.")
+            # Use batch_clear to clear the referee cell
+            worksheet.batch_clear([referee_cell_addr])
+            print(f"✅ {discord_id} dropped from lobby {lobby_id}.")
             return True, None
         else:
             return False, "**Lobby not found.**"
@@ -249,7 +252,7 @@ def drop_referee(lobby_id, discord_nickname):
     except Exception as e:
         print(f"⚠️ Google Sheets Error: {e}")
         return False, "An error occurred while dropping the lobby."
-
+    
 def get_claimed_lobbies(discord_nickname):
     """Fetches the lobbies claimed by the referee, ensuring that the lobby times are not earlier than the current time by more than 1 hour."""
     try:
@@ -257,7 +260,7 @@ def get_claimed_lobbies(discord_nickname):
         lobby_cells = worksheet.range("H2:H")
         date_cells = worksheet.range("I2:I")
         time_cells = worksheet.range("J2:J")
-        referee_cells = worksheet.range("K2:K")
+        referee_cells = worksheet.range("W2:W")
         
         claimed_lobbies = []
         current_time = datetime.now(pytz.UTC)
@@ -290,19 +293,19 @@ def fetch_pings(lobbyID):
 
     # Fetch data ranges
     lobby_cells = worksheet.range("H2:H")  # Lobby IDs
-    referee_cells = worksheet.range("K2:K")  # Referee nicknames
-    team_cells = worksheet.range("M2:Q")  # Team names (5 columns)
+    referee_cells = worksheet.range("W2:W")  # Referee id
+    team_cells = worksheet.range("X2:AB")  # Team cap IDs (5 columns)
 
     # Loop through lobby cells to find the matching lobbyID
     for i, cell in enumerate(lobby_cells):
         if cell.value == lobbyID:
-            # Get referee nickname from column K
+            # Get referee id from column W
             referee_nickname = referee_cells[i].value.strip() if referee_cells[i].value else None
             
-            # Get team role names from columns M to Q
-            team_roles = [team_cells[j].value.strip() for j in range(i * 5, i * 5 + 5) if team_cells[j].value]
+            # Get team cap IDs from columns X to AB
+            team_cap_ids = [team_cells[j].value.strip() for j in range(i * 5, i * 5 + 5) if team_cells[j].value]
 
-            return referee_nickname, team_roles
+            return referee_nickname, team_cap_ids
 
     # If no matching lobby found
     return None, None
