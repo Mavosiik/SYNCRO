@@ -5,8 +5,30 @@ from utils.google_sheets import get_worksheet, update_sheet, create_lobby, get_l
 from datetime import datetime
 import pytz
 import io
+import os
 import csv
 
+def get_team_from_csv(user_id):
+    """Reads the CSV file and returns the team associated with the user_id."""
+    try:
+        current_dir = os.path.dirname(os.path.abspath(__file__))  # Absolute path of the script
+        parent_dir = os.path.dirname(current_dir)  # Go up one directory
+        file_path = os.path.join(parent_dir, 'MBB7teams.csv')  # Path to the CSV file
+
+        with open(file_path, mode='r') as file:
+            # Manually specify the column names since there are no headers
+            reader = csv.DictReader(file, fieldnames=['id', 'team'])
+
+            for row in reader:
+                print(f"Row data: {row}")  # Print each row to inspect the data
+                if str(row['id']) == str(user_id):  # Ensure both IDs are treated as strings
+                    return row['team']  # Return the corresponding team name
+
+        return None  # Return None if the user ID is not found
+    except Exception as e:
+        print(f"⚠️ Error reading CSV file: {e}")
+        return None
+    
 class Qualifiers(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -25,31 +47,24 @@ class Qualifiers(commands.Cog):
     @app_commands.command(name="qsched", description="Schedule your team for a qualifiers lobby.")
     @commands.cooldown(1, 1.0, commands.BucketType.default)  # Limit command activation to 1 time per second globally
     async def schedule_qualifiers(self, interaction: discord.Interaction, lobby_id: str):
-        """Slash command for scheduling a qualifiers lobby using the user's lowest role (excluding @everyone)."""
+        """Slash command for scheduling a qualifiers lobby using the user's team from a CSV file."""
 
-        # Check if the user has the correct role
-        if not any(role.id == 1344467503245557770 for role in interaction.user.roles):
+        # Get the user's team based on their user ID from the CSV file
+        team = get_team_from_csv(interaction.user.id)
+
+        if not team:
             await interaction.response.send_message("❌ Only captains can schedule qualifier lobbies. For urgent matters please reach out to an admin.", ephemeral=True)
             return
-        
-        await interaction.response.defer()
-        
-        # Get all roles excluding @everyone and find the lowest one
-        roles = [role for role in interaction.user.roles if role.name != "@everyone"]
-        if not roles:
-            await interaction.followup.send("❌ You don't have any assignable roles.", ephemeral=True)
-            return
-        
-        lowest_role = min(roles, key=lambda r: r.position)  # Get the lowest role by position
-        role_name = lowest_role.name
 
-        success, error_msg = update_sheet(role_name, lobby_id)
+        await interaction.response.defer()
+
+        success, error_msg = update_sheet(team, lobby_id)
 
         if success:
             # Create an embedded success message
             embed = Embed(
-                title=f"✅ {role_name} Scheduled",
-                description=f"{role_name} has been successfully scheduled for lobby {lobby_id}.",
+                title=f"✅ {team} Scheduled",
+                description=f"The team {team} has been successfully scheduled for lobby {lobby_id}.",
                 color=discord.Color.green()
             )
             await interaction.followup.send(embed=embed)
@@ -70,10 +85,13 @@ class Qualifiers(commands.Cog):
         # Define the role IDs you want to check
         role_ids = [1162844846478864544, 1164991967302783037]  # Allowed roles
 
-        # Check if the user has any of the roles
+        # Check if the user has any of the roles or is in the CSV file
         if not any(role.id in role_ids for role in interaction.user.roles):
-            await interaction.response.send_message("❌ Only captains, admins and referees can create qualifier lobbies. For urgent matters please reach out to an admin", ephemeral=True)
-            return
+            # Check if the user is in the CSV by trying to get their team
+            team = get_team_from_csv(interaction.user.id)
+            if not team:  # If no team is returned, the user is not in the CSV file
+                await interaction.response.send_message("❌ Only captains, admins, referees, or users listed in the CSV can create qualifier lobbies. For urgent matters please reach out to an admin", ephemeral=True)
+                return
 
         await interaction.response.defer()
 
@@ -112,14 +130,14 @@ class Qualifiers(commands.Cog):
             await interaction.followup.send(f"❌ Lobby creation failed: {error_msg} For urgent matters, please reach out to an admin.", ephemeral=True)
 
     @app_commands.command(name="lobbies", description="List upcoming qualifiers lobbies based on conditions.")
-    @app_commands.describe(condition="referee=empty for lobbies without a referee | free for lobbies with free team slot")
+    @app_commands.describe(condition="referee=empty for lobbies without a referee | referee=needed for lobbies with at least 1 team without referee | free for lobbies with free team slot")
     @commands.cooldown(1, 1.0, commands.BucketType.default)
     async def list_lobbies(self, interaction: discord.Interaction, condition: str):
         """Lists upcoming qualifiers lobbies based on user input ('empty' or 'free')."""
         await interaction.response.defer()
 
         # Validate the condition input
-        if condition not in ["referee=empty", "free"]:
+        if condition not in ["referee=empty","referee=needed", "free"]:
             await interaction.delete_original_response()  # Delete the deferred response
             await interaction.followup.send("❌ Invalid condition. Please use 'referee=empty' for no referee or 'free' for at least one empty team slot.", ephemeral=True)
             return
@@ -212,9 +230,10 @@ class Qualifiers(commands.Cog):
         await interaction.response.defer()
 
         discord_nickname = interaction.user.nick or interaction.user.name  # Use nickname if set, otherwise fallback to username
+        discord_id = interaction.user.id
 
         # Get the list of claimed lobbies
-        claimed_lobbies = get_claimed_lobbies(discord_nickname)
+        claimed_lobbies = get_claimed_lobbies(discord_id)
 
         if not claimed_lobbies:
             await interaction.followup.send(f"❌ No claimed lobbies found for {discord_nickname}.", ephemeral=True)
@@ -292,6 +311,10 @@ class Qualifiers(commands.Cog):
     @app_commands.command(name="get_users", description="Get all users in the guild and their IDs in a CSV format.")
     async def get_users(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
+
+        if not any(role.id == 1160286790498930759 for role in interaction.user.roles):
+            await interaction.response.send_message("❌ You don't have permissions to use this command", ephemeral=True)
+            return
 
         guild = interaction.guild
         await guild.chunk()

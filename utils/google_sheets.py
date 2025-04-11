@@ -195,6 +195,12 @@ def get_lobbies(condition):
                 upcoming_lobbies.append((lobby_cell.value, discord_timestamp))
                 print(f"Lobby found: {lobby_cell.value}")  # Debugging log
 
+            # Handle the 'needs ref' condition (at least one team filled and no referee assigned)
+            elif condition == "referee=needed" and any(cell.value for cell in team_cell_range) and not referee_cell.value:
+                discord_timestamp = f"<t:{int(lobby_datetime.timestamp())}:F>"
+                upcoming_lobbies.append((lobby_cell.value, discord_timestamp))
+                print(f"Lobby found (needs referee): {lobby_cell.value}")  # Debugging log
+
         return upcoming_lobbies
 
     except Exception as e:
@@ -253,7 +259,7 @@ def drop_referee(lobby_id, discord_id):
         print(f"⚠️ Google Sheets Error: {e}")
         return False, "An error occurred while dropping the lobby."
     
-def get_claimed_lobbies(discord_nickname):
+def get_claimed_lobbies(discord_id):
     """Fetches the lobbies claimed by the referee, ensuring that the lobby times are not earlier than the current time by more than 1 hour."""
     try:
         worksheet = sheet.worksheet("QSchedule")
@@ -268,7 +274,7 @@ def get_claimed_lobbies(discord_nickname):
 
         # Iterate over the lobbies to find the ones claimed by the referee
         for i, (lobby_cell, date_cell, time_cell, referee_cell) in enumerate(zip(lobby_cells, date_cells, time_cells, referee_cells)):
-            if referee_cell.value != discord_nickname:  # Only look for lobbies claimed by this referee
+            if referee_cell.value != str(discord_id):  # Only look for lobbies claimed by this referee
                 continue
 
             try:
