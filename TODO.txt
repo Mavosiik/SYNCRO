@@ -1,6 +1,5 @@
 --DISCORD_MODERATION--
 - add player, team roles on team signup/player from team join
-- add captain role on team signup/player join
 (check for updates both on sheet and discord welcome channel)
 
 --QUALIFIERS--
