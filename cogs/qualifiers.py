@@ -39,7 +39,7 @@ class Qualifiers(commands.Cog):
     async def qrules(self, interaction: discord.Interaction):
         embed = Embed(title="Qualifiers Rules", description="Please follow these rules to ensure a smooth run of the qualifiers stage", color=0x1ABC9C)
         embed.add_field(name="📝 Scheduling Rules", value="- Only **the captain** of the team can schedule their lobby *(for emergencies contact a member of the admin team)*\n- Each team can sign up for any existing lobby **before it's start time**\n- Custom lobbies **must** be scheduled **at least 6h before the lobby time** *(exceptions can be made if there's a referee able to take the lobby)*", inline=False)
-        embed.add_field(name="⚔ Qualifiers Procedure", value="- Every team will be notified about their lobby **15 minutes prior to the lobby start time**\n- Every team will have **one try** to play the qualifiers\n- Qualifiers mappool will consist of **4xNM, 2xHD, 2xHR and 2xDT**, played in order **beginning with EZ1NM1 and ending with DT2**\n- If a player disconnects during a map **due to a technical issue**, they’re allowed to replay the map **once**\n- Teams that are **more than 5 minutes late** to their qualifier lobby **will be asked to reschedule**", inline=False)
+        embed.add_field(name="⚔ Qualifiers Procedure", value="- Every team will be notified about their lobby **15 minutes prior to the lobby start time**\n- Every team will have **one try** to play the qualifiers\n- Qualifiers mappool will consist of **4xNM, 2xHD, 2xHR and 2xDT**, played in order **beginning with NM1 and ending with DT2**\n- If a player disconnects during a map **due to a technical issue**, they’re allowed to replay the map **once**\n- Teams that are **more than 5 minutes late** to their qualifier lobby **will be asked to reschedule**", inline=False)
         embed.add_field(name="📌 Useful Links", value="- [Main Sheet](https://docs.google.com/spreadsheets/d/1e-PgHx_fx-aqo_J1M17ekpshO72Ldnilr5QYZJ4X7RU)\n- [Full Rulebook](https://docs.google.com/document/d/1HSZA4_OCpGjgmlVCrxvNT70ANSWaaxup9FLUGoATqoQ)", inline=False)
         
         await interaction.response.send_message(embed=embed)
@@ -64,7 +64,7 @@ class Qualifiers(commands.Cog):
             # Create an embedded success message
             embed = Embed(
                 title=f"✅ {team} Scheduled",
-                description=f"The team {team} has been successfully scheduled for lobby {lobby_id}.",
+                description=f"Team {team} has successfully scheduled for lobby {lobby_id}.",
                 color=discord.Color.green()
             )
             await interaction.followup.send(embed=embed)
@@ -173,7 +173,7 @@ class Qualifiers(commands.Cog):
         if not any(role.id == 1162844846478864544 for role in interaction.user.roles):
             await interaction.response.send_message("❌ Only referees can claim qualifier lobbies", ephemeral=True)
             return
-
+        await interaction.defer()
         discord_nickname = interaction.user.nick or interaction.user.name  # Use nickname if set, otherwise fallback to username
         discord_id = interaction.user.id
 
@@ -185,9 +185,10 @@ class Qualifiers(commands.Cog):
                 description=f"{discord_nickname} has successfully claimed lobby {lobby_id} as the referee.",
                 color=discord.Color.green()
             )
-            await interaction.response.send_message(embed=embedmsg)
+            await interaction.followup.send(embed=embedmsg)
         else:
-            await interaction.response.send_message(f"❌ {error_msg}", ephemeral=True)
+            await interaction.delete_original_response()
+            await interaction.followup.send(f"❌ {error_msg}", ephemeral=True)
 
     @app_commands.command(name="qdrop", description="Drop your claim as a referee for a qualifiers lobby.")
     @commands.has_role(1162844846478864544)  # Only users with the referee role can use this
@@ -199,6 +200,7 @@ class Qualifiers(commands.Cog):
         if not any(role.id == 1162844846478864544 for role in interaction.user.roles):
             await interaction.response.send_message("❌ Only referees can claim qualifier lobbies", ephemeral=True)
             return
+        await interaction.response.defer()
         
         discord_nickname = interaction.user.nick or interaction.user.name  # Use nickname if set, otherwise fallback to username
         discord_id = interaction.user.id
@@ -212,9 +214,10 @@ class Qualifiers(commands.Cog):
                 description=f"{discord_nickname} has successfully dropped their claim on lobby {lobby_id}.",
                 color=discord.Color.green()
             )
-            await interaction.response.send_message(embed=embedmsg)
+            await interaction.followup.send(embed=embedmsg)
         else:
-            await interaction.response.send_message(f"❌ {error_msg}", ephemeral=True)
+            await interaction.delete_original_response()
+            await interaction.followup.send(f"❌ {error_msg}", ephemeral=True)
 
     @app_commands.command(name="qclaimed", description="List the lobbies claimed by a referee.")
     @commands.has_role(1162844846478864544)  # Only users with the referee role can use this
@@ -290,7 +293,7 @@ class Qualifiers(commands.Cog):
                     message = f"{role_ping_text} Your qualifiers lobby: **{lobby_id}** starts soon, the referee for this lobby will be: {inviter_text}"
 
                     # Send the ping to the channel
-                    channel = self.bot.get_channel(1359560191133089915)
+                    channel = self.bot.get_channel(1160278434820411486)
                     if channel:
                         await channel.send(message, allowed_mentions=discord.AllowedMentions(roles=True, users=True))
 
